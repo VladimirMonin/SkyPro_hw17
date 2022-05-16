@@ -1,5 +1,3 @@
-# app.py
-
 from flask import Flask, request
 from flask_restx import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
@@ -50,6 +48,8 @@ class MovieSchema(Schema):
     trailer = fields.Str()
     year = fields.Int()
     rating = fields.Int()
+    genre_id = fields.Int()
+    director_id = fields.Int()
 
 
 class DirectorSchema(Schema):
@@ -73,11 +73,36 @@ api = Api(app)
 
 movies_ns = api.namespace('movies')
 
-@movies_ns.route('')
+@movies_ns.route('/')
 class MoviesView(Resource):
     def get(self):
-        all_movies = db.session.query(Movie).all()
-        return movies_schema.dump(all_movies), 200
+
+        global result # Не совсем понимаю, почему без глобализации нет возврата result. Хотя return находится ВНУТРИ ФУНКЦИИ
+
+        director_id = request.args.get('director_id')
+        movie_id = request.args.get('movie_id')
+        genre_id = request.args.get('genre_id')
+        page_num = request.args.get('page')
+
+        if director_id:
+            result = Movie.query.filter(Movie.director_id == director_id)
+
+        elif movie_id:
+            result = Movie.query.filter(Movie.id == movie_id)
+
+        elif genre_id:
+            result = Movie.query.filter(Movie.genre_id == genre_id)
+
+        elif page_num:
+            limit = 5
+            offset = (int(page_num) - 1) * 5
+            result = Movie.query.limit(limit).offset(offset)
+
+        else:
+            result = db.session.query(Movie).all()
+
+        return movies_schema.dump(result), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True)
