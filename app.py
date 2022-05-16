@@ -6,8 +6,12 @@ from flask_sqlalchemy import SQLAlchemy
 from marshmallow import Schema, fields
 
 app = Flask(__name__)
+
+app.config['JSON_AS_ASCII'] = False
+app.config['RESTX_JSON'] = {'ensure_ascii': False, 'indent': 2}
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 
@@ -21,10 +25,10 @@ class Movie(db.Model):
     rating = db.Column(db.Float)
 
     genre_id = db.Column(db.Integer, db.ForeignKey("genre.id"))
-    genre = db.relationship("genre")
+    genre = db.relationship("Genre")
 
     director_id = db.Column(db.Integer, db.ForeignKey("director.id"))
-    director = db.relationship("director")
+    director = db.relationship("Director")
 
 
 class Director(db.Model):
@@ -52,10 +56,28 @@ class DirectorSchema(Schema):
     id = fields.Int(dump_only=True)
     name = fields.Str()
 
+
 class GenreSchema(Schema):
     id = fields.Int(dump_only=True)
     name = fields.Str()
 
+
+movie_schema = MovieSchema()
+movies_schema = MovieSchema(many=True)
+director_schema = DirectorSchema()
+directors_schema = DirectorSchema(many=True)
+genre_schema = GenreSchema()
+genres = GenreSchema(many=True)
+
+api = Api(app)
+
+movies_ns = api.namespace('movies')
+
+@movies_ns.route('')
+class MoviesView(Resource):
+    def get(self):
+        all_movies = db.session.query(Movie).all()
+        return movies_schema.dump(all_movies), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
