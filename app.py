@@ -1,3 +1,4 @@
+import rating as rating
 from flask import Flask, request
 from flask_restx import Api, Resource
 from flask_sqlalchemy import SQLAlchemy
@@ -73,35 +74,43 @@ api = Api(app)
 
 movies_ns = api.namespace('movies')
 
+
 @movies_ns.route('/')
 class MoviesView(Resource):
     def get(self):
-
-        global result # Не совсем понимаю, почему без глобализации нет возврата result. Хотя return находится ВНУТРИ ФУНКЦИИ
 
         director_id = request.args.get('director_id')
         movie_id = request.args.get('movie_id')
         genre_id = request.args.get('genre_id')
         page_num = request.args.get('page')
 
+        select = db.session.query(Movie.id, Movie.title, Movie.description, Movie.trailer, Movie.year, Movie.rating,
+                                  Genre.name, Director.name).join(Genre).join(Director)
+
         if director_id:
-            result = Movie.query.filter(Movie.director_id == director_id)
-
+            select = select.filter(Movie.director_id == director_id)
         elif movie_id:
-            result = Movie.query.filter(Movie.id == movie_id)
-
+            select = select.filter(Movie.id == movie_id)
         elif genre_id:
-            result = Movie.query.filter(Movie.genre_id == genre_id)
-
+            select = select.filter(Movie.genre_id == genre_id)
         elif page_num:
             limit = 5
             offset = (int(page_num) - 1) * 5
-            result = Movie.query.limit(limit).offset(offset)
+            select = select.limit(limit).offset(offset)
 
-        else:
-            result = db.session.query(Movie).all()
+        result = select.all()
 
-        return movies_schema.dump(result), 200
+        return [{
+            'title': title,
+            'genre_name': genre_name,
+            'director_name': director_name,
+            'id': id,
+            'description': description,
+            'trailer': trailer,
+            'year': year,
+            'rating': rating
+
+        } for id, title, description, trailer, year, rating, genre_name, director_name, in result], 200
 
 
 if __name__ == '__main__':
